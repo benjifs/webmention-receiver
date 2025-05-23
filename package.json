@@ -1,0 +1,26 @@
+{
+  "name": "webmention-receiver",
+  "version": "0.1.0",
+  "description": "webmention receiver with webmention-handler",
+  "main": "src/wm/receiver.js",
+  "keywords": [
+    "webmentions",
+    "indieweb",
+    "netlify",
+    "serverless"
+  ],
+  "author": "Benji Encalada Mora (https://benji.dog)",
+  "homepage": "https://github.com/benjifs/webmention-receiver",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/benjifs/webmention-receiver.git"
+  },
+  "bugs": {
+    "url": "https://github.com/benjifs/webmention-receiver/issues"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "webmention-handler": "^0.0.9",
+    "webmention-handler-netlify-blobs": "^0.1.0"
+  }
+}

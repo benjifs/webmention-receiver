@@ -1,4 +1,4 @@
-# Serverless Webmentions
+# Webmention Receiver
 
 Store [Webmentions](https://www.w3.org/TR/webmention/) in [Netlify](https://netlify.com) using [Functions](https://docs.netlify.com/functions/overview/)
 and [Blobs](https://docs.netlify.com/blobs/overview/).

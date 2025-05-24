@@ -1,7 +1,7 @@
 import { WebMentionHandler } from 'webmention-handler'
 import BlobStorage from 'webmention-handler-netlify-blobs'
 
-import Response from '../lib/Response'
+import HTTP from '../lib/HTTPResponse'
 import { translate } from '../lib/convert'
 import fetchWebmentions from '../lib/webmentionio'
 import sendWebhook from '../lib/webhook'
@@ -23,31 +23,32 @@ export default class WebmentionReceiver {
 	}
 
 	#validateRequest = token => {
-		if (!this.#token) return { ...Response.INTERNAL_SERVER_ERROR, body: 'Missing token' }
-		if (!token) return Response.UNAUTHORIZED
-		if (this.#token != token) return Response.FORBIDDEN
+		if (!this.#token) return HTTP.INTERNAL_SERVER_ERROR('Missing token')
+		if (!token) return HTTP.UNAUTHORIZED()
+		if (this.#token != token) return HTTP.FORBIDDEN()
 	}
 
-	cleanupHandler = async (e) => {
-		if ('GET' != e.httpMethod) return Response.NOT_ALLOWED
+	cleanupHandler = async (req) => {
+		if ('GET' !== req.method) return HTTP.METHOD_NOT_ALLOWED()
 
-		const error = this.#validateRequest(e.queryStringParameters.token)
+		const params = new URL(req.url).searchParams
+		const token = params.get('token')
+		const error = this.#validateRequest(token)
 		if (error) return error
 
 		const total = await this.#store.clearAll()
-		return {
-			...Response.OK,
-			body: `Deleted ${total} items`
-		}
+		return HTTP.OK(`Deleted ${total} items`)
 	}
 
-	importHandler = async (e) => {
-		if ('GET' != e.httpMethod) return Response.NOT_ALLOWED
+	importHandler = async (req) => {
+		if ('GET' !== req.method) return HTTP.METHOD_NOT_ALLOWED()
 
-		const { token, webmentionio } = e.queryStringParameters
+		const params = new URL(req.url).searchParams
+		const token = params.get('token')
+		const webmentionio = params.get('webmentionio')
 		const error = this.#validateRequest(token)
 		if (error) return error
-		if (!webmentionio) return { ...Response.BAD_REQUEST, body: 'Missing "webmentionio" token' }
+		if (!webmentionio) return HTTP.BAD_REQUEST('Missing "webmentionio" token')
 
 		try {
 			const webmentions = await fetchWebmentions(webmentionio)
@@ -55,93 +56,67 @@ export default class WebmentionReceiver {
 			const targets = {}
 			for (const wm of webmentions) {
 				const mention = translate(wm)
-				const id = encodeURIComponent(mention.target)
-				targets[id] = targets[id] || []
-				targets[id].push(mention)
+				targets[mention.target] = targets[mention.target] || []
+				targets[mention.target].push(mention)
 			}
 
 			for (const [target, mentions] of Object.entries(targets)) {
 				await this.#store.storeMentionsForPage(target, mentions)
 			}
 
-			return {
-				...Response.OK,
-				body: `Imported ${webmentions.length} webmentions for ${Object.entries(targets).length} targets`
-			}
+			return HTTP.OK(`Imported ${webmentions.length} webmentions for ${Object.entries(targets).length} targets`)
 		} catch (error) {
 			console.error('[ERROR]', error.message)
-			return {
-				...Response.BAD_REQUEST,
-				body: error.message
-			}
+			return HTTP.BAD_REQUEST(error.message)
 		}
 	}
 
 	processHandler = async () => {
 		await this.#handler.processPendingMentions()
-		return Response.OK
+		return HTTP.OK()
 	}
 
-	webmentionHandler = async (e) => {
-		const params = new URLSearchParams(e.body)
-		const source = params.get('source')
-		const target = params.get('target')
-
+	webmentionHandler = async (req) => {
 		try {
+			const formData = await req.formData()
+			const source = formData.get('source')
+			const target = formData.get('target')
 			const recommendedResponse = await this.#handler.addPendingMention(source, target)
 			if ([200, 201, 202].includes(recommendedResponse.code)) {
 				sendWebhook(this.#webhook, { source, target })
 			}
-			return {
-				statusCode: recommendedResponse.code,
-				body: 'accepted'
-			}
+			return new Response('accepted', { status: recommendedResponse.code })
 		} catch (error) {
 			console.error('[ERROR]', error.message)
-			return {
-				...Response.BAD_REQUEST,
-				body: error.message
-			}
+			return HTTP.BAD_REQUEST(error.message)
 		}
 	}
 
-	webmentionsHandler = async (e) => {
-		if ('GET' != e.httpMethod) return Response.NOT_ALLOWED
+	webmentionsHandler = async (req) => {
+		if ('GET' !== req.method) return HTTP.METHOD_NOT_ALLOWED()
 
-		const { url, type, token } = e.queryStringParameters
+		const params = new URL(req.url).searchParams
+		const url = params.get('url')
+		const token = params.get('token')
 		if (url) {
 			try {
-				const id = encodeURIComponent(url)
-				const mentions = await this.#handler.getMentionsForPage(id, type)
-				return {
-					...Response.OK,
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						[url]: mentions
-					})
-				}
+				const type = params.get('type')
+				const mentions = await this.#handler.getMentionsForPage(url, type)
+				return HTTP.OK({
+					[url]: mentions
+				})
 			} catch (error) {
 				console.error('[ERROR]', error.message)
-				return {
-					...Response.BAD_REQUEST,
-					body: `${url} is not valid`
-				}
+				return HTTP.BAD_REQUEST(`${url} is not valid`)
 			}
 		} else if (token) {
 			const error = this.#validateRequest(token)
 			if (error) return error
 
 			const mentions = await this.#store.getAllMentions()
-			return {
-				...Response.OK,
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(mentions)
-			}
+			return HTTP.OK(mentions)
 		}
 
-		return {
-			...Response.BAD_REQUEST,
-			body: 'Missing "url"'
-		}
+		return HTTP.BAD_REQUEST('Missing "url"')
 	}
 }

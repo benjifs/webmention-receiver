@@ -1,6 +1,6 @@
 {
   "name": "webmention-receiver",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "webmention receiver with webmention-handler",
   "main": "src/wm/receiver.js",
   "keywords": [
@@ -19,8 +19,9 @@
     "url": "https://github.com/benjifs/webmention-receiver/issues"
   },
   "license": "MIT",
+  "type": "module",
   "dependencies": {
     "webmention-handler": "^0.0.9",
-    "webmention-handler-netlify-blobs": "^0.1.0"
+    "webmention-handler-netlify-blobs": "^0.2.0"
   }
 }

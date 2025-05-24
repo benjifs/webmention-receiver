@@ -1,4 +1,4 @@
-export default fetchWebmentions = async (token) => {
+export default async (token) => {
 	const res = await fetch(`https://webmention.io/api/mentions.jf2?token=${token}&per-page=1000`)
 	if (!res || 200 != res.status) {
 		const err = await res.json()

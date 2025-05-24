@@ -1,4 +1,4 @@
-export default sendWebhook = async (webhook, item) => {
+export default async (webhook, item) => {
 	if (webhook) await fetch(webhook, {
 		method: 'POST',
 		headers: {

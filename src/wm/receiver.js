@@ -1,10 +1,10 @@
 import { WebMentionHandler } from 'webmention-handler'
 import BlobStorage from 'webmention-handler-netlify-blobs'
 
-import HTTP from '../lib/HTTPResponse'
-import { translate } from '../lib/convert'
-import fetchWebmentions from '../lib/webmentionio'
-import sendWebhook from '../lib/webhook'
+import HTTP from '../lib/HTTPResponse.js'
+import { translate } from '../lib/convert.js'
+import fetchWebmentions from '../lib/webmentionio.js'
+import sendWebhook from '../lib/webhook.js'
 
 export default class WebmentionReceiver {
 	#store // Defaults to BlobStorage

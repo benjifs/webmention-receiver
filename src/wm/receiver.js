@@ -77,19 +77,24 @@ export default class WebmentionReceiver {
 	}
 
 	webmentionHandler = async (req) => {
-		try {
-			const formData = await req.formData()
-			const source = formData.get('source')
-			const target = formData.get('target')
-			const recommendedResponse = await this.#handler.addPendingMention(source, target)
-			if ([200, 201, 202].includes(recommendedResponse.code)) {
-				sendWebhook(this.#webhook, { source, target })
-			}
-			return new Response('accepted', { status: recommendedResponse.code })
-		} catch (error) {
-			console.error('[ERROR]', error.message)
-			return HTTP.BAD_REQUEST(error.message)
+		const contentType = req.headers.get('content-type')
+		let body
+		if ('application/x-www-form-urlencoded' === contentType) {
+			body = await req.formData()
+		} else {
+			body = new URL(req.url).searchParams
 		}
+		if (!body) return HTTP.BAD_REQUEST('Missing "source" and "target"')
+		const source = body.get('source')
+		if (!source) return HTTP.BAD_REQUEST('Missing "source"')
+		const target = body.get('target')
+		if (!target) return HTTP.BAD_REQUEST('Missing "target"')
+
+		const recommendedResponse = await this.#handler.addPendingMention(source, target)
+		if ([200, 201, 202].includes(recommendedResponse.code)) {
+			sendWebhook(this.#webhook, { source, target })
+		}
+		return new Response('accepted', { status: recommendedResponse.code })
 	}
 
 	webmentionsHandler = async (req) => {

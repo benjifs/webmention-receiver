@@ -92,7 +92,7 @@ export default class WebmentionReceiver {
 
 		const recommendedResponse = await this.#handler.addPendingMention(source, target)
 		if ([200, 201, 202].includes(recommendedResponse.code)) {
-			sendWebhook(this.#webhook, { source, target })
+			await sendWebhook(this.#webhook, { source, target })
 		}
 		return new Response('accepted', { status: recommendedResponse.code })
 	}

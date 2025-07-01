@@ -1,5 +1,6 @@
 import { WebMentionHandler } from 'webmention-handler'
 import BlobStorage from 'webmention-handler-netlify-blobs'
+import isEqual from 'fast-deep-equal'
 
 import HTTP from '../lib/HTTPResponse.js'
 import { translate } from '../lib/convert.js'
@@ -71,8 +72,33 @@ export default class WebmentionReceiver {
 		}
 	}
 
+	#compareMentions = (m1, m2) => {
+		const a = { ...m1 }
+		const b = { ...m2 }
+		delete a.parsed
+		delete b.parsed
+		return isEqual(a, b)
+	}
+
+	processMention = async (mention) => {
+		const processed = await this.#handler.processMention(mention, true)
+		if (!processed) return null
+
+		for (const m of processed) {
+			let saved = await this.#handler.getMentionsForPage(m.target)
+			if (saved) {
+				const prev = saved.find(p => p.source === m.source)
+				if (this.#compareMentions(prev, m)) continue
+			}
+			console.log(`[INFO] ${saved ? 'Updating' : 'Adding'} ${m.source} for ${m.target}`)
+			await this.#store.storeMentionForPage(m.target, m)
+			await sendWebhook(this.#webhook, m)
+		}
+	}
+
 	processHandler = async () => {
-		await this.#handler.processPendingMentions()
+		const mentions = await this.#store.getNextPendingMentions()
+		await Promise.all(mentions.map(mention => this.processMention(mention)))
 		return HTTP.OK()
 	}
 
@@ -92,7 +118,7 @@ export default class WebmentionReceiver {
 
 		const recommendedResponse = await this.#handler.addPendingMention(source, target)
 		if ([200, 201, 202].includes(recommendedResponse.code)) {
-			await sendWebhook(this.#webhook, { source, target })
+			// await sendWebhook(this.#webhook, { source, target })
 		}
 		return new Response('accepted', { status: recommendedResponse.code })
 	}

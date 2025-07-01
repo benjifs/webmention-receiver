@@ -92,7 +92,7 @@ export default class WebmentionReceiver {
 			}
 			console.log(`[INFO] ${saved ? 'Updating' : 'Adding'} ${m.source} for ${m.target}`)
 			await this.#store.storeMentionForPage(m.target, m)
-			await sendWebhook(this.#webhook, m)
+			await sendWebhook(this.#webhook, m, 'processed')
 		}
 	}
 
@@ -118,7 +118,7 @@ export default class WebmentionReceiver {
 
 		const recommendedResponse = await this.#handler.addPendingMention(source, target)
 		if ([200, 201, 202].includes(recommendedResponse.code)) {
-			// await sendWebhook(this.#webhook, { source, target })
+			await sendWebhook(this.#webhook, { source, target })
 		}
 		return new Response('accepted', { status: recommendedResponse.code })
 	}

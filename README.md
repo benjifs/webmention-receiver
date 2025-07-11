@@ -51,6 +51,8 @@ simple **POST** request.
 #### `webmentionHandler`
 This is the main handler that will accept a webmention given a `source` and valid
 `target`. If valid, it will be added to a queue to be processed at a later time.
+- You can also call this handler with `DELETE` and `token` to force remove a specific
+webmention.
 
 #### `processHandler`
 This will process the queue of pending webmentions and process them and, if valid,

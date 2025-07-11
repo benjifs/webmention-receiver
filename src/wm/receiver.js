@@ -82,7 +82,11 @@ export default class WebmentionReceiver {
 
 	processMention = async (mention) => {
 		const processed = await this.#handler.processMention(mention, true)
-		if (!processed) return null
+		if (!processed) {
+			// Should delete if it exists
+			await this.#store.deleteMention(mention)
+			return null
+		}
 
 		for (const m of processed) {
 			let saved = await this.#handler.getMentionsForPage(m.target)
@@ -102,7 +106,26 @@ export default class WebmentionReceiver {
 		return HTTP.OK()
 	}
 
+	#deleteMention = async (req) => {
+		const params = new URL(req.url).searchParams
+		const token = params.get('token')
+		const error = this.#validateRequest(token)
+		if (error) return error
+
+		const source = params.get('source')
+		if (!source) return HTTP.BAD_REQUEST('Missing "source"')
+		const target = params.get('target')
+		if (!target) return HTTP.BAD_REQUEST('Missing "target"')
+
+		await this.#store.deleteMention({ source, target })
+
+		return HTTP.OK(`Deleted mention`)
+	}
+
 	webmentionHandler = async (req) => {
+		if ('DELETE' === req.method) return await this.#deleteMention(req)
+		if ('POST' !== req.method) return HTTP.METHOD_NOT_ALLOWED()
+
 		const contentType = req.headers.get('content-type')
 		let body
 		if ('application/x-www-form-urlencoded' === contentType) {

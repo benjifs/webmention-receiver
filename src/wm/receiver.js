@@ -80,29 +80,42 @@ export default class WebmentionReceiver {
 		return isEqual(a, b)
 	}
 
-	processMention = async (mention) => {
-		const processed = await this.#handler.processMention(mention, true)
-		if (!processed) {
+	#processMention = async (mention, processed = {}) => {
+		const results = await this.#handler.processMention(mention, true)
+		if (!results) {
 			// Should delete if it exists
 			await this.#store.deleteMention(mention)
-			return null
+			return processed
 		}
 
-		for (const m of processed) {
-			let saved = await this.#handler.getMentionsForPage(m.target)
-			if (saved) {
-				const prev = saved.find(p => p.source === m.source)
-				if (this.#compareMentions(prev, m)) continue
+		for (const m of results) {
+			if (!processed[m.target]) {
+				processed[m.target] = await this.#handler.getMentionsForPage(m.target) || []
 			}
-			console.log(`[INFO] ${saved ? 'Updating' : 'Adding'} ${m.source} for ${m.target}`)
-			await this.#store.storeMentionForPage(m.target, m)
+			const prev = processed[m.target].find(p => p.source === m.source)
+			if (this.#compareMentions(prev, m)) continue
+
+			console.log(`[INFO] Adding ${m.source} for ${m.target}`)
+			processed[m.target].push(m)
 			await sendWebhook(this.#webhook, m, 'processed')
+		}
+		return processed
+	}
+
+	#storeMentions = async (processed) => {
+		for (const [target, mentions] of Object.entries(processed)) {
+			console.log(`[INFO] Adding ${mentions.length} for ${target}`)
+			await this.#store.storeMentionsForPage(target, mentions)
 		}
 	}
 
 	processHandler = async () => {
 		const mentions = await this.#store.getNextPendingMentions()
-		await Promise.all(mentions.map(mention => this.processMention(mention)))
+		let processed = {}
+		for (const mention of mentions) {
+			processed = await this.#processMention(mention, processed)
+		}
+		await this.#storeMentions(processed)
 		return HTTP.OK()
 	}
 

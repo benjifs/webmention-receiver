@@ -1,6 +1,6 @@
 {
   "name": "webmention-receiver",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "webmention receiver with webmention-handler",
   "main": "src/wm/receiver.js",
   "keywords": [

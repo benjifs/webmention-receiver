@@ -159,6 +159,32 @@ export default class WebmentionReceiver {
 		return new Response('accepted', { status: recommendedResponse.code })
 	}
 
+	// https://docs.netlify.com/build/functions/background-functions/
+	// By default, this always returns ACCEPTED (202) even if `source` or `target`
+	// are missing so it's not ideal. Will revist after background functions come
+	// out of beta.
+	webmentionBackgroundHandler = async (req) => {
+		if ('POST' !== req.method) return HTTP.METHOD_NOT_ALLOWED()
+
+		const contentType = req.headers.get('content-type')
+		let body
+		if ('application/x-www-form-urlencoded' === contentType) {
+			body = await req.formData()
+		} else {
+			body = new URL(req.url).searchParams
+		}
+		if (!body) return HTTP.BAD_REQUEST('Missing "source" and "target"')
+		const source = body.get('source')
+		if (!source) return HTTP.BAD_REQUEST('Missing "source"')
+		const target = body.get('target')
+		if (!target) return HTTP.BAD_REQUEST('Missing "target"')
+
+		const processed = await this.#processMention({ source, target })
+		if (processed) await this.#storeMentions(processed)
+
+		return HTTP.ACCEPTED()
+	}
+
 	webmentionsHandler = async (req) => {
 		if ('GET' !== req.method) return HTTP.METHOD_NOT_ALLOWED()
 

@@ -153,10 +153,12 @@ export default class WebmentionReceiver {
 		if (!target) return HTTP.BAD_REQUEST('Missing "target"')
 
 		const recommendedResponse = await this.#handler.addPendingMention(source, target)
-		if ([200, 201, 202].includes(recommendedResponse.code)) {
+		if ([201, 202].includes(recommendedResponse.code)) {
 			await sendWebhook(this.#webhook, { source, target })
 		}
-		return new Response('accepted', { status: recommendedResponse.code })
+		if (201 == recommendedResponse.code) return HTTP.CREATED()
+		if (202 == recommendedResponse.code) return HTTP.ACCEPTED()
+		return HTTP.OK()
 	}
 
 	// https://docs.netlify.com/build/functions/background-functions/

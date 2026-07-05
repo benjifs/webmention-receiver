@@ -208,7 +208,12 @@ export default class WebmentionReceiver {
 			const error = this.#validateRequest(token)
 			if (error) return error
 
-			const mentions = await this.#store.getAllMentions()
+			let mentions
+			if (params.get('all')) {
+				mentions = await this.#store.getAllMentions()
+			} else {
+				mentions = await this.#store.getAllMentioned()
+			}
 			return HTTP.OK(mentions)
 		}
 
